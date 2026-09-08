@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>THK Stage Timer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #000;
+    --surface: #1c1c1c;
+    --white: #fff;
+    --red: #e62b1e;
+    --green: #3cb371;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.5s;
+  }
+
+  body.overtime, body.warning { background: var(--red); }
+
+  /* ── HEADER ─────────────────────────────────────── */
+  #header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: #111;
+    border-bottom: 1px solid #222;
+    flex-shrink: 0;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 12px; }
+
+  .ted-logo {
+    background: #5bb8f5;
+    color: #fff;
+    font-weight: 900;
+    font-size: 11px;
+    border-radius: 50%;
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0.5px;
+  }
+
+  #header h1 { font-size: 17px; font-weight: 600; }
+  .header-btns { display: flex; gap: 10px; }
+
+  .icon-btn {
+    background: none;
+    border: 1.5px solid #444;
+    border-radius: 50%;
+    width: 36px; height: 36px;
+    color: #aaa;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .icon-btn:hover { border-color: #888; color: #fff; }
+
+  /* ── SETUP SCREEN ───────────────────────────────── */
+  #setup-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 44px;
+  }
+
+  #setup-screen {
+    width: 100%;
+    max-width: 100vw;
+    padding: 0 10px;
+    box-sizing: border-box;
+  }
+
+  .time-picker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(4px, 2vw, 10px);
+    max-width: 100%;
+  }
+
+  .time-unit {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: clamp(8px, 3vw, 14px) clamp(8px, 3.2vw, 16px);
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 2vw, 10px);
+    min-width: 0;
+  }
+
+  .time-input {
+    font-size: clamp(40px, 15vw, 320px);
+    font-weight: 800;
+    line-height: 1;
+    width: 3ch;
+    text-align: center;
+    color: var(--white);
+    letter-spacing: -4px;
+    background: none;
+    border: none;
+    outline: none;
+    caret-color: var(--green);
+    -moz-appearance: textfield;
+    min-width: 0;
+  }
+  .time-input::-webkit-inner-spin-button,
+  .time-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .time-input:focus { border-bottom: 2px solid var(--green); }
+
+  .time-arrows { display: flex; flex-direction: column; gap: clamp(8px, 2.3vw, 46px); flex-shrink: 0; }
+
+  .arrow-btn {
+    background: none;
+    border: 1.5px solid #444;
+    border-radius: 50%;
+    width: clamp(26px, 6vw, 128px); height: clamp(26px, 6vw, 128px);
+    color: #aaa;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(10px, 2vw, 40px);
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .arrow-btn:hover { border-color: #ccc; color: #fff; background: #2a2a2a; }
+  .arrow-btn:active { background: #3a3a3a; }
+
+  .colon {
+    font-size: clamp(32px, 13vw, 280px);
+    font-weight: 800;
+    color: #555;
+    line-height: 1;
+    animation: colonBlink 1s step-start infinite;
+    padding-bottom: 8px;
+    flex-shrink: 0;
+  }
+
+  @keyframes colonBlink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0.25; }
+  }
+
+  .start-btn {
+    width: 72px; height: 72px;
+    background: var(--green);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.15s, background 0.15s;
+    box-shadow: 0 4px 24px rgba(60,179,113,0.4);
+  }
+  .start-btn:hover { transform: scale(1.08); background: #45c47f; }
+  .start-btn:active { transform: scale(0.96); }
+  .start-btn svg { width: 28px; height: 28px; fill: #fff; margin-left: 4px; }
+
+  /* ── COUNTDOWN SCREEN ───────────────────────────── */
+  #countdown-screen {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    container-type: size;
+    container-name: countdown;
+  }
+  #countdown-screen.active { display: flex; }
+
+  body.fullscreen #header { display: none; }
+  body.fullscreen { height: 100dvh; }
+  body.fullscreen #countdown-screen { position: fixed; inset: 0; z-index: 50; background: var(--bg); }
+  body.fullscreen.overtime #countdown-screen,
+  body.fullscreen.warning #countdown-screen { background: var(--red); }
+
+  .timer-display {
+    font-size: clamp(40px, min(85cqh, 30cqw), 85cqh);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -6px;
+    color: #ffffff;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+    max-width: 96cqw;
+  }
+
+  .timer-display.overtime-text {
+    font-size: clamp(32px, min(38cqh, 16cqw), 38cqh);
+    letter-spacing: -2px;
+    animation: overtimePulse 1s ease-in-out infinite;
+  }
+
+  /* Pulse via scale, never opacity — keeps the number at full brightness
+     at all times so it stays legible when projected. */
+  @keyframes overtimePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.035); }
+  }
+
+  #overtime-label {
+    display: none;
+    font-size: clamp(16px, 4vw, 26px);
+    font-weight: 700;
+    letter-spacing: 5px;
+    color: #ffffff;
+    margin-bottom: 14px;
+    user-select: none;
+  }
+  #overtime-label.visible { display: block; }
+
+  #dots-row {
+    display: flex;
+    gap: clamp(14px, 2.5vw, 32px);
+    margin-top: clamp(4px, 0.6cqh, 16px);
+  }
+
+  .dot {
+    width: clamp(40px, 7cqh, 85px);
+    height: clamp(40px, 7cqh, 85px);
+    border-radius: 50%;
+    background: #fff;
+    transition: opacity 5s ease;
+  }
+  .dot.faded { opacity: 0.1; }
+
+  /* Controls overlay — centered on screen, with a darkening scrim behind it for visibility */
+  #controls {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(14px, 6vw, 40px);
+    max-width: 94vw;
+    opacity: 1;
+    transition: opacity 0.5s;
+    z-index: 41;
+  }
+  #controls.hidden { opacity: 0; pointer-events: none; }
+
+  #controls-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.62);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s;
+    z-index: 40;
+  }
+  #controls:not(.hidden) ~ #controls-backdrop { opacity: 1; }
+
+  /* Fullscreen exit hint — only visible in fullscreen when controls hidden */
+  #fs-hint {
+    position: absolute;
+    bottom: 14px;
+    right: 18px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.18);
+    pointer-events: none;
+    user-select: none;
+    display: none;
+    letter-spacing: 0.5px;
+  }
+  body.fullscreen #fs-hint { display: block; }
+  body.fullscreen #controls:not(.hidden) ~ #fs-hint { opacity: 0; }
+
+  .ctrl-btn {
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    width: clamp(52px, 16vw, 104px); height: clamp(52px, 16vw, 104px);
+    flex-shrink: 0;
+    color: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px);
+    transition: background 0.2s;
+  }
+  .ctrl-btn:hover { background: rgba(255,255,255,0.3); }
+  .ctrl-btn.pause-btn { width: clamp(60px, 19vw, 124px); height: clamp(60px, 19vw, 124px); }
+
+  .ctrl-btn svg {
+    width: 38%; height: 38%;
+    fill: none; stroke: #fff;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .ctrl-btn.pause-btn svg { width: 38%; height: 38%; }
+
+  /* Long-press ripple for exit fullscreen hint */
+  #longpress-ring {
+    display: none;
+    position: fixed;
+    border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%) scale(0);
+    width: 80px; height: 80px;
+    transition: transform 0.7s ease, opacity 0.7s ease;
+  }
+  #longpress-ring.active {
+    display: block;
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+
+  /* Shared badge */
+  #shared-badge {
+    display: none;
+    position: absolute;
+    top: 14px;
+    left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    color: #aaa;
+    white-space: nowrap;
+    backdrop-filter: blur(4px);
+  }
+  #shared-badge.visible { display: block; }
+
+  /* Share Toast */
+  #share-toast {
+    position: fixed;
+    bottom: 108px;
+    left: 50%; transform: translateX(-50%) translateY(16px);
+    background: #1e1e1e;
+    color: #fff;
+    padding: 11px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+    border: 1px solid #3a3a3a;
+    z-index: 999;
+  }
+  #share-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── CONFIRM MODAL ──────────────────────────────── */
+  #confirm-modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 600;
+    align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  #confirm-modal.open { display: flex; }
+
+  .confirm-box {
+    background: #1a1a1a;
+    border-radius: 16px;
+    padding: 28px 24px;
+    max-width: 340px; width: 100%;
+    border: 1px solid #2e2e2e;
+    text-align: center;
+  }
+  .confirm-box .confirm-icon {
+    font-size: 36px;
+    margin-bottom: 14px;
+  }
+  .confirm-box h3 { font-size: 18px; margin-bottom: 10px; }
+  .confirm-box p { font-size: 14px; color: #999; line-height: 1.6; margin-bottom: 22px; }
+  .confirm-actions { display: flex; gap: 10px; }
+  .confirm-actions button {
+    flex: 1;
+    padding: 11px;
+    border-radius: 10px;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .confirm-actions button:hover { opacity: 0.85; }
+  .btn-cancel-action { background: #2a2a2a; color: #fff; }
+  .btn-confirm-action { background: var(--red); color: #fff; }
+
+  /* Help Modal */
+  #help-modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.88);
+    z-index: 500;
+    align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  #help-modal.open { display: flex; }
+
+  .modal-box {
+    background: #1a1a1a;
+    border-radius: 16px;
+    padding: 28px 24px;
+    max-width: 400px; width: 100%;
+    border: 1px solid #2e2e2e;
+  }
+  .modal-box h2 { font-size: 20px; margin-bottom: 14px; }
+  .modal-box p { font-size: 14px; color: #bbb; line-height: 1.7; margin-bottom: 10px; }
+  .modal-box p strong { color: #fff; }
+  .modal-close {
+    background: var(--red); color: #fff;
+    border: none; border-radius: 8px;
+    padding: 10px 24px;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer; margin-top: 10px; width: 100%;
+  }
+
+  /* Wake lock badge */
+  #wakelock-badge {
+    position: absolute;
+    top: 14px; right: 16px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    display: none;
+    user-select: none;
+  }
+  #wakelock-badge.visible { display: block; }
+
+  @media (orientation: portrait) {
+    .timer-display { font-size: clamp(60px, 40vw, 40vw); }
+    .dot { width: clamp(16px, 5vw, 36px); height: clamp(16px, 5vw, 36px); }
+    #dots-row { gap: clamp(6px, 2vw, 16px); }
+  }
+
+  /* Phones/small screens in landscape: short viewport height, so shrink
+     chrome and rely on the width-capped clamp()s above for the digits. */
+  @media (orientation: landscape) and (max-height: 480px) {
+    #header { padding: 6px 14px; }
+    #header h1 { font-size: 14px; }
+    .ted-logo { width: 28px; height: 28px; font-size: 9px; }
+    #setup-screen { gap: 20px; }
+    .time-input { font-size: clamp(32px, 11vw, 200px); }
+    .colon { font-size: clamp(26px, 9vw, 160px); }
+    .arrow-btn { width: clamp(20px, 5vw, 70px); height: clamp(20px, 5vw, 70px); }
+    .start-btn { width: 56px; height: 56px; }
+    .ctrl-btn { width: clamp(40px, 13vw, 90px); height: clamp(40px, 13vw, 90px); }
+    .ctrl-btn.pause-btn { width: clamp(46px, 15vw, 100px); height: clamp(46px, 15vw, 100px); }
+    .timer-display { font-size: clamp(36px, min(70cqh, 26cqw), 70cqh); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <div class="header-left">
+    <div class="ted-logo">THK</div>
+    <h1>Stage Timer</h1>
+  </div>
+  <div class="header-btns">
+    <button class="icon-btn" id="help-btn" title="Yardım" style="font-size:15px;">?</button>
+  </div>
+</div>
+
+<!-- Setup Screen -->
+<div id="setup-screen">
+  <div class="time-picker">
+    <div class="time-unit">
+      <input class="time-input" id="min-input" type="number" min="0" max="240" value="18" inputmode="numeric">
+      <div class="time-arrows">
+        <button class="arrow-btn" id="min-up">▲</button>
+        <button class="arrow-btn" id="min-down">▼</button>
+      </div>
+    </div>
+
+    <div class="colon">:</div>
+
+    <div class="time-unit">
+      <input class="time-input" id="sec-input" type="number" min="0" max="59" value="00" inputmode="numeric">
+      <div class="time-arrows">
+        <button class="arrow-btn" id="sec-up">▲</button>
+        <button class="arrow-btn" id="sec-down">▼</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="start-btn" id="start-btn">
+    <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+  </button>
+</div>
+
+<!-- Countdown Screen -->
+<div id="countdown-screen">
+  <div id="shared-badge">🔗 Shared timer</div>
+  <div id="wakelock-badge">☀ ekran açık</div>
+  <div id="overtime-label">OVER TIME</div>
+  <div class="timer-display" id="timer-display">18</div>
+  <div id="dots-row">
+    <div class="dot" id="d1"></div>
+    <div class="dot" id="d2"></div>
+    <div class="dot" id="d3"></div>
+    <div class="dot" id="d4"></div>
+    <div class="dot" id="d5"></div>
+    <div class="dot" id="d6"></div>
+    <div class="dot" id="d7"></div>
+    <div class="dot" id="d8"></div>
+    <div class="dot" id="d9"></div>
+    <div class="dot" id="d10"></div>
+  </div>
+
+  <div id="controls">
+    <!-- Restart / back to setup -->
+    <button class="ctrl-btn" id="restart-btn" title="Geri dön">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"/>
+        <path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
+      </svg>
+    </button>
+
+    <!-- Pause / Play -->
+    <button class="ctrl-btn pause-btn" id="pause-btn">
+      <svg id="pause-icon" viewBox="0 0 24 24">
+        <rect x="6" y="4" width="4" height="16" fill="white" stroke="none"/>
+        <rect x="14" y="4" width="4" height="16" fill="white" stroke="none"/>
+      </svg>
+    </button>
+
+    <!-- Share -->
+    <button class="ctrl-btn" id="share-countdown-btn" title="Paylaş">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+    </button>
+
+    <!-- Fullscreen toggle -->
+    <button class="ctrl-btn" id="fs-btn" title="Tam ekran">
+      <svg id="fs-icon" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 3 21 3 21 9"/>
+        <polyline points="9 21 3 21 3 15"/>
+        <line x1="21" y1="3" x2="14" y2="10"/>
+        <line x1="3" y1="21" x2="10" y2="14"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="controls-backdrop"></div>
+
+  <!-- Subtle hint shown when fullscreen & controls hidden -->
+  <div id="fs-hint">ekrana dokun • uzun bas çıkar</div>
+</div>
+
+<!-- Long-press ripple -->
+<div id="longpress-ring"></div>
+
+<!-- Share Toast -->
+<div id="share-toast">🔗 Link kopyalandı!</div>
+
+<!-- Confirm Modal (back/close protection) -->
+<div id="confirm-modal">
+  <div class="confirm-box">
+    <div class="confirm-icon">⏱</div>
+    <h3>Sayaç hâlâ çalışıyor</h3>
+    <p>Sayfadan ayrılırsan sayaç durur. Devam etmek istiyor musun?</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel-action" id="confirm-stay">Geri dön</button>
+      <button class="btn-confirm-action" id="confirm-leave">Çık</button>
+    </div>
+  </div>
+</div>
+
+<!-- Help Modal -->
+<div id="help-modal">
+  <div class="modal-box">
+    <h2>THK Stage Timer</h2>
+    <p>Dakika (0–240) ve saniyeyi ok tuşlarıyla veya direkt yazarak ayarla, ardından ▶ tuşuna bas.</p>
+    <p><strong>Sayaç:</strong> 90 saniyeye kadar yalnızca dakika gösterilir. Alttaki 10 nokta her dakikanın ilerleyişini temsil eder (her nokta 6 saniye). 90 saniyenin altında saniye saniye sayar.</p>
+    <p><strong>Tam ekran:</strong> Sağ alttaki ⛶ butonuna bas. Kontrollar 2 saniye sonra kaybolur.<br>
+    • <em>Mouse'lu:</em> mouse'u hareket ettir<br>
+    • <em>Dokunmatik:</em> ekrana tek dokun → kontroller görünür; çıkmak için uzun bas (1 sn)<br>
+    • <em>Klavye:</em> Escape tuşu</p>
+    <p><strong>Share:</strong> Çalışan sayacı paylaş butonuyla ilet. Link gerçek bitiş zamanını içerir — açan herkes doğru kalan süreyi görür.</p>
+    <p><strong>Geri tuşu koruması:</strong> Sayaç çalışırken yanlışlıkla geri gidilmesine karşı onay penceresi çıkar.</p>
+    <p><strong>Ekran açık kalır:</strong> Desteklenen cihazlarda sayaç çalışırken ekran otomatik kapanmaz.</p>
+    <p><strong>Son 5 dakika:</strong> Ekran kırmızıya döner ve 4 kez bip sesi çalar. Süre bittiğinde de 4 kez bip çalar.</p>
+    <button class="modal-close" id="help-close">Kapat</button>
+  </div>
+</div>
+
+<script>
+(function () {
+
+  /* ── State ───────────────────────────────────────── */
+  let endTimestamp    = null;
+  let rafId           = null;
+  let isPaused        = false;
+  let pausedAt        = null;
+  let isSharedTimer   = false;
+  let overtimeStarted = false;
+  let warningStarted  = false;   // true once the last-5-minutes red warning has fired
+  let isFullscreen    = false;
+  let timerRunning    = false;   // true while countdown is active
+  let wakeLock        = null;
+  let confirmCallback = null;    // fn to call if user confirms exit
+
+  const MIN_TO_SECONDS = 90;
+  const MAX_MINUTES    = 240;
+  const WARNING_MS     = 5 * 60 * 1000; // turn red + beep at 5:00 remaining
+
+  /* ── DOM refs ─────────────────────────────────────── */
+  const setupScreen     = document.getElementById('setup-screen');
+  const countdownScreen = document.getElementById('countdown-screen');
+  const minInput        = document.getElementById('min-input');
+  const secInput        = document.getElementById('sec-input');
+  const timerDisplay    = document.getElementById('timer-display');
+  const dotsRow         = document.getElementById('dots-row');
+  const dots            = Array.from({length:10}, (_,i) => document.getElementById('d'+(i+1)));
+  const pauseBtn        = document.getElementById('pause-btn');
+  const pauseIcon       = document.getElementById('pause-icon');
+  const restartBtn      = document.getElementById('restart-btn');
+  const shareBtn        = document.getElementById('share-countdown-btn');
+  const shareToast      = document.getElementById('share-toast');
+  const helpBtn         = document.getElementById('help-btn');
+  const helpModal       = document.getElementById('help-modal');
+  const helpClose       = document.getElementById('help-close');
+  const sharedBadge     = document.getElementById('shared-badge');
+  const overtimeLabel   = document.getElementById('overtime-label');
+  const controls        = document.getElementById('controls');
+  const fsBtn           = document.getElementById('fs-btn');
+  const fsIcon          = document.getElementById('fs-icon');
+  const confirmModal    = document.getElementById('confirm-modal');
+  const confirmStay     = document.getElementById('confirm-stay');
+  const confirmLeave    = document.getElementById('confirm-leave');
+  const wakeBadge       = document.getElementById('wakelock-badge');
+  const lpRing          = document.getElementById('longpress-ring');
+
+  /* ── Input helpers ────────────────────────────────── */
+  function getMinutes() { return Math.min(MAX_MINUTES, Math.max(0, parseInt(minInput.value) || 0)); }
+  function getSeconds() { return Math.min(59, Math.max(0, parseInt(secInput.value) || 0)); }
+
+  function formatInput(input, max) {
+    let v = Math.min(max, Math.max(0, parseInt(input.value) || 0));
+    // minutes can be 3 digits (up to 240), seconds always 2
+    input.value = (max <= 59) ? String(v).padStart(2, '0') : String(v);
+  }
+
+  minInput.addEventListener('change', () => formatInput(minInput, MAX_MINUTES));
+  secInput.addEventListener('change', () => formatInput(secInput, 59));
+  minInput.addEventListener('focus', () => minInput.select());
+  secInput.addEventListener('focus', () => secInput.select());
+
+  [minInput, secInput].forEach(el => {
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('start-btn').click();
+    });
+  });
+
+  /* ── Arrow buttons ────────────────────────────────── */
+  function holdInterval(fn, el) {
+    let timeout, interval;
+    const start = () => { fn(); timeout = setTimeout(() => { interval = setInterval(fn, 110); }, 380); };
+    const stop  = () => { clearTimeout(timeout); clearInterval(interval); };
+    el.addEventListener('mousedown', start);
+    el.addEventListener('touchstart', e => { e.preventDefault(); start(); }, {passive: false});
+    el.addEventListener('mouseup', stop);
+    el.addEventListener('mouseleave', stop);
+    el.addEventListener('touchend', stop);
+    el.addEventListener('touchcancel', stop);
+  }
+
+  holdInterval(() => { minInput.value = Math.min(MAX_MINUTES, getMinutes() + 1); formatInput(minInput, MAX_MINUTES); }, document.getElementById('min-up'));
+  holdInterval(() => { minInput.value = Math.max(0, getMinutes() - 1);           formatInput(minInput, MAX_MINUTES); }, document.getElementById('min-down'));
+  holdInterval(() => { secInput.value = (getSeconds() + 30) % 60;                formatInput(secInput, 59); }, document.getElementById('sec-up'));
+  holdInterval(() => { const s = getSeconds(); secInput.value = s >= 30 ? 0 : 30; formatInput(secInput, 59); }, document.getElementById('sec-down'));
+
+  /* ── Audio alert (double beep) ───────────────────────
+     Generated in-browser via Web Audio API — no external
+     sound file needed. The AudioContext is created lazily
+     from within a user-gesture handler (Start button) so
+     mobile autoplay restrictions don't block it. ────── */
+  let audioCtx = null;
+
+  function getAudioCtx() {
+    try {
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        audioCtx = new AC();
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    } catch (_) { return null; }
+  }
+
+  function beep(freq, duration) {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    try {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      const now = ctx.currentTime;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.45, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration / 1000);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + duration / 1000 + 0.03);
+    } catch (_) {}
+  }
+
+  // Number of beeps per alert — change this one number to adjust the pattern.
+  const BEEP_COUNT = 4;
+
+  function alertBeep(freq = 880) {
+    for (let i = 0; i < BEEP_COUNT; i++) {
+      setTimeout(() => beep(freq, 140), i * 210);
+    }
+  }
+
+  /* ── Wake Lock ────────────────────────────────────── */
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeBadge.classList.add('visible');
+      wakeLock.addEventListener('release', () => { wakeBadge.classList.remove('visible'); });
+    } catch (_) {}
+  }
+
+  function releaseWakeLock() {
+    if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    wakeBadge.classList.remove('visible');
+  }
+
+  // Re-acquire on visibility change (mobile browsers release it on tab switch)
+  document.addEventListener('visibilitychange', () => {
+    if (timerRunning && !isPaused && document.visibilityState === 'visible') requestWakeLock();
+  });
+
+  /* ── Confirm modal (back/close guard) ────────────── */
+  // Wrapped: history.pushState/replaceState throw a SecurityError inside
+  // sandboxed preview iframes (e.g. srcdoc origins). Swallow that so the
+  // rest of the app keeps working; on a normal hosted page these calls
+  // succeed as usual and the back-button guard behaves normally.
+  function safePushState(state) {
+    try { history.pushState(state, ''); } catch (_) {}
+  }
+  function safeReplaceState() {
+    try { history.replaceState(null, '', window.location.pathname); } catch (_) {}
+  }
+
+  function showConfirm(onLeave) {
+    confirmCallback = onLeave;
+    confirmModal.classList.add('open');
+  }
+
+  confirmStay.addEventListener('click', () => {
+    confirmModal.classList.remove('open');
+    confirmCallback = null;
+    // Restore history state so back button guard works again
+    safePushState({ timerActive: true });
+  });
+
+  confirmLeave.addEventListener('click', () => {
+    confirmModal.classList.remove('open');
+    const cb = confirmCallback;
+    confirmCallback = null;
+    timerRunning = false; // disarm beforeunload
+    if (cb) cb();
+  });
+
+  /* ── beforeunload guard (tab close / refresh) ─────── */
+  window.addEventListener('beforeunload', e => {
+    if (!timerRunning) return;
+    e.preventDefault();
+    e.returnValue = '';  // triggers browser's own "Leave site?" dialog
+  });
+
+  /* ── History / back button guard ─────────────────── */
+  function pushHistoryGuard() {
+    safePushState({ timerActive: true });
+  }
+
+  window.addEventListener('popstate', e => {
+    if (!timerRunning) return;
+    // User pressed back — intercept
+    showConfirm(() => {
+      // They want to leave → go back for real
+      timerRunning = false;
+      history.back();
+    });
+    // Re-push so the guard stays armed for next back press
+    safePushState({ timerActive: true });
+  });
+
+  /* ── Timer core ───────────────────────────────────── */
+  function startTimer(durationMs, shared) {
+    endTimestamp    = Date.now() + durationMs;
+    isPaused        = false;
+    overtimeStarted = false;
+    warningStarted  = false;
+    isSharedTimer   = !!shared;
+    timerRunning    = true;
+
+    setupScreen.style.display = 'none';
+    countdownScreen.classList.add('active');
+    if (isSharedTimer) sharedBadge.classList.add('visible');
+
+    document.body.classList.remove('overtime', 'warning');
+    overtimeLabel.classList.remove('visible');
+    timerDisplay.classList.remove('overtime-text');
+    dotsRow.style.display = 'flex';
+    resetDots();
+    setPauseIcon(false);
+
+    getAudioCtx(); // warm up / unlock audio on this user gesture
+    requestWakeLock();
+    pushHistoryGuard();
+    tick();
+  }
+
+  function tick() {
+    if (isPaused) return;
+    render(endTimestamp - Date.now());
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function render(remaining) {
+    const totalSec = Math.floor(remaining / 1000);
+
+    if (remaining >= 0) {
+      if (totalSec > MIN_TO_SECONDS) {
+        timerDisplay.textContent = Math.ceil(remaining / 60000);
+      } else {
+        timerDisplay.textContent = String(Math.abs(totalSec)).padStart(2, '0');
+      }
+    } else {
+      const ot = Math.abs(totalSec);
+      const m  = Math.floor(ot / 60);
+      const s  = ot % 60;
+      timerDisplay.textContent = m > 0 ? `${m}:${String(s).padStart(2,'0')}` : String(ot);
+    }
+
+    if (remaining >= 0 && remaining <= WARNING_MS && !warningStarted) {
+      warningStarted = true;
+      document.body.classList.add('warning');
+      alertBeep(880);
+    }
+
+    if (remaining < 0 && !overtimeStarted) {
+      overtimeStarted = true;
+      document.body.classList.add('overtime');
+      dotsRow.style.display = 'none';
+      timerDisplay.classList.add('overtime-text');
+      alertBeep(660);
+    }
+
+    if (remaining <= -9000) overtimeLabel.classList.add('visible');
+    if (remaining >= 0 && totalSec > MIN_TO_SECONDS) updateDots(totalSec);
+  }
+
+  function resetDots() { dots.forEach(d => d.classList.remove('faded')); }
+
+  function updateDots(totalSec) {
+    const s = totalSec % 60;
+    dots.forEach((dot, i) => dot.classList.toggle('faded', s <= (9 - i) * 6));
+  }
+
+  /* ── Pause / Play ─────────────────────────────────── */
+  function setPauseIcon(paused) {
+    pauseIcon.innerHTML = paused
+      ? '<polygon points="5,3 19,12 5,21" fill="white"/>'
+      : '<rect x="6" y="4" width="4" height="16" fill="white"/><rect x="14" y="4" width="4" height="16" fill="white"/>';
+  }
+
+  pauseBtn.addEventListener('click', () => {
+    if (isPaused) {
+      endTimestamp = Date.now() + pausedAt;
+      isPaused = false;
+      setPauseIcon(false);
+      requestWakeLock();
+      tick();
+    } else {
+      pausedAt = endTimestamp - Date.now();
+      isPaused = true;
+      cancelAnimationFrame(rafId);
+      setPauseIcon(true);
+      releaseWakeLock();
+    }
+  });
+
+  /* ── Restart / back to setup ──────────────────────── */
+  function doRestart() {
+    cancelAnimationFrame(rafId);
+    releaseWakeLock();
+    timerRunning = false;
+
+    document.body.classList.remove('overtime', 'warning');
+    overtimeLabel.classList.remove('visible');
+    timerDisplay.classList.remove('overtime-text');
+    overtimeStarted = false;
+    warningStarted = false;
+    isPaused = false;
+    dotsRow.style.display = 'flex';
+    resetDots();
+    setPauseIcon(false);
+
+    countdownScreen.classList.remove('active');
+    sharedBadge.classList.remove('visible');
+    setupScreen.style.display = '';
+
+    if (isFullscreen) exitFullscreen();
+    safeReplaceState();
+  }
+
+  restartBtn.addEventListener('click', () => {
+    if (timerRunning) {
+      showConfirm(doRestart);
+    } else {
+      doRestart();
+    }
+  });
+
+  /* ── Share ────────────────────────────────────────── */
+  shareBtn.addEventListener('click', () => {
+    if (!endTimestamp) return;
+    const url = new URL(window.location.href);
+    // Uses whatever protocol the page is actually served on. Forcing https:
+    // here would break the link entirely if the host has no SSL cert —
+    // http just shows a minor "Not secure" label, no warning interstitial.
+    url.searchParams.set('end', endTimestamp);
+    if (isPaused) url.searchParams.set('paused', pausedAt);
+    const link = url.toString();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(link).then(() => showToast('🔗 Link kopyalandı!')).catch(() => fallbackCopy(link));
+    } else {
+      fallbackCopy(link);
+    }
+  });
+
+  function fallbackCopy(text) {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast('🔗 Link kopyalandı!');
+  }
+
+  function showToast(msg) {
+    shareToast.textContent = msg;
+    shareToast.classList.add('show');
+    setTimeout(() => shareToast.classList.remove('show'), 2500);
+  }
+
+  /* ── Start button ─────────────────────────────────── */
+  document.getElementById('start-btn').addEventListener('click', () => {
+    formatInput(minInput, MAX_MINUTES);
+    formatInput(secInput, 59);
+    const dur = (getMinutes() * 60 + getSeconds()) * 1000;
+    if (dur <= 0) return;
+    safeReplaceState();
+    startTimer(dur, false);
+  });
+
+  /* ── Fullscreen ───────────────────────────────────── */
+  const FS_ENTER_SVG = `<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>`;
+  const FS_EXIT_SVG  = `<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>`;
+
+  function enterFullscreen() {
+    isFullscreen = true;
+    document.body.classList.add('fullscreen');
+    fsIcon.innerHTML = FS_EXIT_SVG;
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+    controls.classList.remove('hidden');
+    startIdleTimer();
+  }
+
+  function exitFullscreen() {
+    isFullscreen = false;
+    document.body.classList.remove('fullscreen');
+    fsIcon.innerHTML = FS_ENTER_SVG;
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+    controls.classList.remove('hidden');
+    clearTimeout(idleTimer);
+  }
+
+  fsBtn.addEventListener('click', () => isFullscreen ? exitFullscreen() : enterFullscreen());
+
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && isFullscreen) exitFullscreen();
+  });
+
+  /* ── Mouse / touch idle → hide controls ──────────── */
+  let idleTimer;
+
+  function startIdleTimer() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (countdownScreen.classList.contains('active')) controls.classList.add('hidden');
+    }, 2200);
+  }
+
+  document.addEventListener('mousemove', () => {
+    if (!countdownScreen.classList.contains('active')) return;
+    controls.classList.remove('hidden');
+    startIdleTimer();
+  });
+
+  /* ── Touch: tap = show controls; long press = exit fullscreen ── */
+  let lpTimer   = null;
+  let lpStartX  = 0;
+  let lpStartY  = 0;
+  const LP_MS   = 700;   // long-press threshold
+
+  countdownScreen.addEventListener('touchstart', e => {
+    if (e.target.closest('button')) return;
+
+    // Single tap → toggle controls
+    controls.classList.remove('hidden');
+    startIdleTimer();
+
+    if (!isFullscreen) return;
+
+    // Arm long-press for fullscreen exit
+    const t = e.touches[0];
+    lpStartX = t.clientX; lpStartY = t.clientY;
+
+    // Animate ring
+    lpRing.style.left = t.clientX + 'px';
+    lpRing.style.top  = t.clientY + 'px';
+    lpRing.style.transition = 'none';
+    lpRing.style.transform  = 'translate(-50%,-50%) scale(0)';
+    lpRing.style.opacity    = '1';
+    lpRing.style.display    = 'block';
+    requestAnimationFrame(() => {
+      lpRing.style.transition = `transform ${LP_MS}ms ease, opacity ${LP_MS}ms ease`;
+      lpRing.style.transform  = 'translate(-50%,-50%) scale(1)';
+      lpRing.style.opacity    = '0';
+    });
+
+    lpTimer = setTimeout(() => exitFullscreen(), LP_MS);
+  }, {passive: true});
+
+  countdownScreen.addEventListener('touchend', () => {
+    clearTimeout(lpTimer); lpTimer = null;
+    lpRing.style.display = 'none';
+  });
+
+  countdownScreen.addEventListener('touchmove', e => {
+    if (!lpTimer) return;
+    const t = e.touches[0];
+    if (Math.abs(t.clientX - lpStartX) > 10 || Math.abs(t.clientY - lpStartY) > 10) {
+      clearTimeout(lpTimer); lpTimer = null;
+      lpRing.style.display = 'none';
+    }
+  });
+
+  /* ── Help ─────────────────────────────────────────── */
+  helpBtn.addEventListener('click', () => helpModal.classList.add('open'));
+  helpClose.addEventListener('click', () => helpModal.classList.remove('open'));
+  helpModal.addEventListener('click', e => { if (e.target === helpModal) helpModal.classList.remove('open'); });
+
+  /* ── Shared URL ───────────────────────────────────── */
+  function checkSharedUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const end    = parseInt(params.get('end'));
+    if (!isNaN(end) && end > 0) {
+      const remaining = end - Date.now();
+      endTimestamp    = end;
+      startTimer(remaining, true);
+    }
+  }
+
+  checkSharedUrl();
+
+})();
+</script>
+</body>
+</html>
