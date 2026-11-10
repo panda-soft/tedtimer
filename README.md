@@ -45,7 +45,3 @@ Built with standard Web APIs:
 - CSS container queries for responsive digit sizing
 
 Works in current versions of Chrome, Edge, Firefox, and Safari.
-
-## License
-
-Add your license of choice here (e.g. MIT).
